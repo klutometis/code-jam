@@ -23,7 +23,7 @@
   #+END_QUOTE
 
 ** Translation
-   #+BEGIN_SRC scheme :tangle translation.scm
+   #+BEGIN_SRC scheme :tangle tongues/translation.scm
      (require 'srfi-69 'srfi-13)
      
      (use test srfi-95)
@@ -57,7 +57,7 @@
                inputs->outputs)
    #+END_SRC
 
-   #+BEGIN_SRC scheme :noweb yes :tangle test-translation.scm :shebang #!/usr/bin/env chicken-scheme
+   #+BEGIN_SRC scheme :noweb yes :tangle tongues/test-translation.scm :shebang #!/usr/bin/env chicken-scheme
      (include "translation.scm")
      
      (test
@@ -93,7 +93,7 @@
 
 ** Translate
 
-   #+BEGIN_SRC scheme :tangle translate.scm
+   #+BEGIN_SRC scheme :tangle tongues/translate.scm
      (include "translation.scm")
      
      (define (translate input)
@@ -120,7 +120,7 @@
 
 ** Handle input files
 
-   #+BEGIN_SRC scheme :tangle translate-file.scm :shebang #!/usr/bin/env chicken-scheme
+   #+BEGIN_SRC scheme :tangle tongues/translate-file.scm :shebang #!/usr/bin/env chicken-scheme
      (include "translate.scm")
      
      (use extras)
