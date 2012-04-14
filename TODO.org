@@ -140,7 +140,8 @@
      (translate-input)
    #+END_SRC
 
-* TODO Dancing
+* DONE Dancing
+  CLOSED: [2012-04-14 Sat 03:19]
   Some sort of additive factorization. Can we try by using floor(n/3),
   floor(n/3), remainder; taking down floor(n/3) by one if that doesn't
   work. Alternatively, can we distribute units into buckets until we
@@ -416,4 +417,16 @@
     ;; (trace balance-triplets)
     
     (process-input)
+  #+END_SRC
+
+* TODO Recycling
+  #+BEGIN_SRC scheme
+    (use srfi-69)
+    
+    (define (recycled-pairs A B)
+      (let iter ((a A)
+                 (pairs (make-hash-table)))
+        (if (= a b)
+            (length (hash-table-keys pairs))
+            ())))
   #+END_SRC
