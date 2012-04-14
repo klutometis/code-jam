@@ -1,0 +1,141 @@
+* TODO Qualification A
+  Bijection?
+
+  #+BEGIN_QUOTE
+  This mapping is one-to-one and onto, which means that the same input
+  letter always gets replaced with the same output letter, and different
+  input letters always get replaced with different output letters.
+  #+END_QUOTE
+
+  See [[http://en.wikipedia.org/wiki/Bijection][this]]:
+
+  #+BEGIN_QUOTE
+  With this terminology, a bijection is a function which is both a
+  surjection and an injection, or using other words, a bijection is a
+  function which is both one-to-one and onto.
+  #+END_QUOTE
+
+  Spaces happen to map to themselves; they are also the only character
+  to do so:
+
+  #+BEGIN_QUOTE
+  A letter may be replaced by itself. Spaces are left as-is.
+  #+END_QUOTE
+
+** Translation
+   #+BEGIN_SRC scheme :tangle translation.scm
+     (require 'srfi-69 'srfi-13)
+     
+     (use test srfi-95)
+     
+     ;;; Initial hypothesis
+     (define translation
+       (alist->hash-table
+        '(;; From the problem specification
+          (#\a . #\y)
+          (#\o . #\e)
+          (#\z . #\q)
+          ;; By process of elimination from below (a circular dependency).
+          (#\q . #\z))))
+     
+     (define inputs->outputs
+       '(("ejp mysljylc kd kxveddknmc re jsicpdrysi"
+          "our language is impossible to understand")
+         ("rbcpc ypc rtcsra dkh wyfrepkym veddknkmkrkcd"
+          "there are twenty six factorial possibilities")
+         ("de kr kd eoya kw aej tysr re ujdr lkgc jv"
+          "so it is okay if you want to just give up")))
+     
+     ;;; Modify the translation based on the input->output mapping.
+     (for-each (lambda (input->output)
+                 (receive (input output)
+                   (apply values input->output)
+                   (for-each (lambda (from to)
+                               (hash-table-set! translation from to))
+                             (string->list input)
+                             (string->list output))))
+               inputs->outputs)
+   #+END_SRC
+
+   #+BEGIN_SRC scheme :noweb yes :tangle test-translation.scm :shebang #!/usr/bin/env chicken-scheme
+     (include "translation.scm")
+     
+     (test
+      '((#\space . #\space)
+        (#\a . #\y)
+        (#\b . #\h)
+        (#\c . #\e)
+        (#\d . #\s)
+        (#\e . #\o)
+        (#\f . #\c)
+        (#\g . #\v)
+        (#\h . #\x)
+        (#\i . #\d)
+        (#\j . #\u)
+        (#\k . #\i)
+        (#\l . #\g)
+        (#\m . #\l)
+        (#\n . #\b)
+        (#\o . #\k)
+        (#\p . #\r)
+        (#\q . #\z)
+        (#\r . #\t)
+        (#\s . #\n)
+        (#\t . #\w)
+        (#\u . #\j)
+        (#\v . #\p)
+        (#\w . #\f)
+        (#\x . #\m)
+        (#\y . #\a)
+        (#\z . #\q))
+      (sort (hash-table->alist translation) char<? car))   
+   #+END_SRC
+
+** Translate
+
+   #+BEGIN_SRC scheme :tangle translate.scm
+     (include "translation.scm")
+     
+     (define (translate input)
+       (string-map (lambda (transferendum)
+                     (hash-table-ref translation transferendum))
+                   input))
+   #+END_SRC
+
+   #+BEGIN_SRC scheme
+     (include "translate.scm")
+     
+     (test
+      "our language is impossible to understand"
+      (translate "ejp mysljylc kd kxveddknmc re jsicpdrysi"))
+     
+     (test
+      "there are twenty six factorial possibilities"
+      (translate "rbcpc ypc rtcsra dkh wyfrepkym veddknkmkrkcd"))
+     
+     (test
+      "so it is okay if you want to just give up"
+      (translate "de kr kd eoya kw aej tysr re ujdr lkgc jv"))
+   #+END_SRC
+
+** Handle input files
+
+   #+BEGIN_SRC scheme :tangle translate-file.scm :shebang #!/usr/bin/env chicken-scheme
+     (include "translate.scm")
+     
+     (use extras)
+     
+     (define (display-case transferendum number)
+       (format #t "Case #~a: ~a~%" number (translate transferendum)))
+     
+     (define (translate-input)
+       (let ((test-cases (read-line)))
+         (let read ((transferendum (read-line))
+                    (case 1))
+           (if (not (eof-object? transferendum))
+               (begin
+                 (display-case transferendum case)
+                 (read (read-line) (+ case 1)))))))
+     
+     (translate-input)
+   #+END_SRC
