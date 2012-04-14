@@ -1,4 +1,5 @@
-* TODO Qualification A
+* DONE Speaking in tongues
+  CLOSED: [2012-04-13 Fri 19:07]
   Bijection?
 
   #+BEGIN_QUOTE
