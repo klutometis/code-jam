@@ -195,7 +195,7 @@
   unsurprise the minimum surprising result.
 
   #+BEGIN_SRC scheme
-    (use test srfi-95)
+    (use debug test srfi-95)
     
     (include "triplet.scm")
     
@@ -205,23 +205,27 @@
      (not (any identity (map (compose impossible? triplet)
                              (iota 31)))))
     
-    (define mod-three-triplet
-      (lambda (total)
-        (let ((term (inexact->exact (/ total 3))))
-          (list (- term 1) term (+ term 1)))))
+    (define (term total)
+      (inexact->exact (floor (/ total 3))))
     
-    (define surprising-triplet
-       (lambda (total)
-         (let ((term (inexact->exact (floor (/ total 3)))))
-           (list term term (+ term 2)))))
+    (define (surprising-triplet total)
+      (let ((term (term total)))
+        (cond ((= (modulo total 3) 2)
+               (list term term (+ term 2)))
+              ((= (modulo total 3) 1)
+               (list (+ term 1) (+ term 1) (- term 1)))
+              (else (list (+ term 1) term (- term 1))))))
     
-    (define unsurprising-triplet
-       (lambda (total)
-         (let ((term (inexact->exact (ceiling (/ total 3)))))
-           (list term term (+ term 1)))))
+    (define (unsurprising-triplet total)
+      (let ((term (term total)))
+        (cond ((= (modulo total 3) 2)
+               (list (+ term 1) (+ term 1) term))
+              ((= (modulo total 3) 1)
+               (list (+ term 1) term term))
+              (else (list term term term)))))
     
     (test
-     '(6 7 8)
+     '(7 7 7)
      (mod-three-triplet 21))
     
     (test
@@ -229,7 +233,7 @@
      (surprising-triplet 8))
     
     (test
-     '(3 3 4)
+     '(3 3 2)
      (unsurprising-triplet 8))
     
     (define totals->surprises
@@ -261,13 +265,57 @@
                        (map triplet (car totals->surprises)))))
          totals->surprises)
     
-    (let* ((totals '(29 20 8 18 18 21))
-           (triplets (map triplet totals))
-           (bests (map best triplets)))
-      (let ((bests->triplets (sort (zip bests triplets) < car))
-            (target-surprises 1)
-            (surprises (count values (map surprising? triplets))))
-        (debug (zip totals triplets) bests->triplets surprises)))
+    #;
+         (let* ((totals '(29 20 8 18 18 21))
+                (triplets (map triplet totals))
+                (bests (map best triplets)))
+           (let ((bests->triplets (sort (zip bests triplets) < car))
+                 (target-surprises 1)
+                 (surprises (count values (map surprising? triplets))))
+             (debug (zip totals triplets) bests->triplets surprises)))
+    
+    
+    (define (balance-triplets totals surprises)
+      (let iter ((totals (sort totals >))
+                 (surprises surprises)
+                 (triplets '()))
+        (if (null? totals)
+            triplets
+            (let ((total (car totals)))
+              (if (zero? surprises)
+                  (iter (cdr totals)
+                        surprises
+                        (cons (unsurprising-triplet total) triplets))
+                  (iter (cdr totals)
+                        (- surprises 1)
+                        (cons (surprising-triplet total) triplets)))))))
+    
+    (define (best-greater-than triplets p)
+      (count (lambda (best) (>= best p))
+             (map best triplets)))
+    
+    #;
+    (test
+     3
+     (best-greater-than
+      (balance-triplets '(15 13 11) 1) 5))
+    
+    (trace mod-three-triplet)
+    (trace surprising-triplet)
+    (trace unsurprising-triplet)
+    
+    #;
+    (test
+     2
+     (best-greater-than
+      (balance-triplets '(23 22 21) 0) 8))
+    
+    (test
+     3
+     (best-greater-than
+      (balance-triplets '(29 21 20 18 18 8) 2) 8))
+    
+    
   #+END_SRC
 
   Maintain a mapping of best -> triplets in order of increasing best;
