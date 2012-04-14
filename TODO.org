@@ -274,48 +274,51 @@
                  (surprises (count values (map surprising? triplets))))
              (debug (zip totals triplets) bests->triplets surprises)))
     
+    (define (best-greater-than triplets threshold)
+      (count (lambda (best) (>= best threshold))
+             (map best triplets)))
     
-    (define (balance-triplets totals surprises)
+    (define (balance-triplets totals surprises threshold)
       (let iter ((totals (sort totals >))
                  (surprises surprises)
                  (triplets '()))
         (if (null? totals)
-            triplets
+            (best-greater-than triplets threshold)
             (let ((total (car totals)))
+              ;; Don't fuck around with surprises if we don't have any
+              ;; left.
               (if (zero? surprises)
                   (iter (cdr totals)
                         surprises
                         (cons (unsurprising-triplet total) triplets))
-                  (iter (cdr totals)
-                        (- surprises 1)
-                        (cons (surprising-triplet total) triplets)))))))
+                  (let ((surprising-triplet (surprising-triplet total))
+                        (unsurprising-triplet (unsurprising-triplet total)))
+                    ;; Actually use a surprise if it makes a difference
+                    ;; (i.e. propels us above the threshold).
+                    (if (and (>= (best surprising-triplet) threshold)
+                             (< (best unsurprising-triplet) threshold))
+                     (iter (cdr totals)
+                           (- surprises 1)
+                           (cons surprising-triplet triplets))
+                     (iter (cdr totals)
+                           surprises
+                           (cons unsurprising-triplet triplets)))))))))
     
-    (define (best-greater-than triplets p)
-      (count (lambda (best) (>= best p))
-             (map best triplets)))
-    
-    #;
     (test
      3
-     (best-greater-than
-      (balance-triplets '(15 13 11) 1) 5))
+     (balance-triplets '(15 13 11) 1 5))
     
-    (trace mod-three-triplet)
-    (trace surprising-triplet)
-    (trace unsurprising-triplet)
-    
-    #;
     (test
      2
-     (best-greater-than
-      (balance-triplets '(23 22 21) 0) 8))
+     (balance-triplets '(23 22 21) 0 8))
+    
+    (test
+     2
+     (balance-triplets '(8 0) 1 1))
     
     (test
      3
-     (best-greater-than
-      (balance-triplets '(29 21 20 18 18 8) 2) 8))
-    
-    
+     (balance-triplets '(29 21 20 18 18 8) 2 8))
   #+END_SRC
 
   Maintain a mapping of best -> triplets in order of increasing best;
@@ -332,3 +335,82 @@
   We need: 3-mod triplet; surprising triplet; unsurprising triplet.
   For surprising triplets, we take the floor and aim low; for
   unsurprising triplets, we take the ceiling and aim high.
+
+  #+BEGIN_SRC scheme :tangle dancing-with-the-googlers/dancing.scm :shebang #!/usr/bin/env chicken-scheme
+    (require 'srfi-13 'srfi-1)
+    
+    (use debug extras)
+    
+    (define (best triplet)
+      (apply max triplet))
+    
+    (define (term total)
+      (inexact->exact (floor (/ total 3))))
+    
+    (define (surprising-triplet total)
+      (let ((term (term total)))
+        (cond ((= (modulo total 3) 2)
+               (list term term (+ term 2)))
+              ((= (modulo total 3) 1)
+               (list (+ term 1) (+ term 1) (- term 1)))
+              (else (list (+ term 1) term (- term 1))))))
+    
+    (define (unsurprising-triplet total)
+      (let ((term (term total)))
+        (cond ((= (modulo total 3) 2)
+               (list (+ term 1) (+ term 1) term))
+              ((= (modulo total 3) 1)
+               (list (+ term 1) term term))
+              (else (list term term term)))))
+    
+    (define (best-greater-than triplets threshold)
+      (count (lambda (best) (>= best threshold))
+             (map best triplets)))
+    
+    (define (balance-triplets totals surprises threshold)
+      (let iter ((totals (sort totals >))
+                 (surprises surprises)
+                 (triplets '()))
+        (if (null? totals)
+            (best-greater-than triplets threshold)
+            (let ((total (car totals)))
+              ;; Don't fuck around with surprises if we don't have any
+              ;; left.
+              (if (zero? surprises)
+                  (iter (cdr totals)
+                        surprises
+                        (cons (unsurprising-triplet total) triplets))
+                  (let ((surprising-triplet (surprising-triplet total))
+                        (unsurprising-triplet (unsurprising-triplet total)))
+                    ;; Actually use a surprise if it makes a difference
+                    ;; (i.e. propels us above the threshold).
+                    (if (and (>= (best surprising-triplet) threshold)
+                             (< (best unsurprising-triplet) threshold)
+                             (every positive? surprising-triplet))
+                     (iter (cdr totals)
+                           (- surprises 1)
+                           (cons surprising-triplet triplets))
+                     (iter (cdr totals)
+                           surprises
+                           (cons unsurprising-triplet triplets)))))))))
+    
+    (define (display-case best-greater-than number)
+      (format #t "Case #~a: ~a~%" number best-greater-than))
+    
+    (define (process-input)
+      (let ((T (read-line)))
+        (let read ((line (read-line))
+                   (case 1))
+          (if (not (eof-object? line))
+              (let ((line (map string->number (string-tokenize line))))
+                (let ((N (car line))
+                      (surprises (cadr line))
+                      (threshold (caddr line))
+                      (totals (cdddr line)))
+                  (display-case
+                   (balance-triplets totals surprises threshold)
+                   case)
+                  (read (read-line) (+ case 1))))))))
+    
+    (process-input)
+  #+END_SRC
