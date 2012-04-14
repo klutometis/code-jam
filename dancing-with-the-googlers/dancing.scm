@@ -34,6 +34,7 @@
   (let iter ((totals (sort totals >))
              (surprises surprises)
              (triplets '()))
+    ;; (trace iter)
     (if (null? totals)
         (best-greater-than triplets threshold)
         (let ((total (car totals)))
@@ -49,7 +50,7 @@
                 ;; (i.e. propels us above the threshold).
                 (if (and (>= (best surprising-triplet) threshold)
                          (< (best unsurprising-triplet) threshold)
-                         (every positive? surprising-triplet))
+                         (every (complement negative?) surprising-triplet))
                  (iter (cdr totals)
                        (- surprises 1)
                        (cons surprising-triplet triplets))
@@ -74,5 +75,7 @@
                (balance-triplets totals surprises threshold)
                case)
               (read (read-line) (+ case 1))))))))
+
+;; (trace balance-triplets)
 
 (process-input)
