@@ -139,3 +139,148 @@
      
      (translate-input)
    #+END_SRC
+
+* TODO Dancing
+  Some sort of additive factorization. Can we try by using floor(n/3),
+  floor(n/3), remainder; taking down floor(n/3) by one if that doesn't
+  work. Alternatively, can we distribute units into buckets until we
+  run out (same thing?); redistributing by /sorprendido/ when the
+  delta is too high?
+
+  #+BEGIN_SRC scheme :tangle triplet.scm
+    (use srfi-1)
+    
+    (define (triplet total)
+      (let ((factor (inexact->exact (floor (/ total 3)))))
+        (list factor factor (- total (* 2 factor)))))
+    
+    (define (best triplet)
+      (apply max triplet))
+    
+    (define (worst triplet)
+      (apply min triplet))
+    
+    (define (surprising->unsurprising triplet)
+      (let ((best (best triplet))
+            (worst (worst triplet)))
+        (list worst (+ worst 1) (- best 1))))
+    
+    (define (delta triplet)
+      (- (best triplet) (worst triplet)))
+    
+    (define (surprising? triplet)
+      (= (delta triplet) 2))
+    
+    (define (impossible? triplet)
+      (> (delta triplet) 2))
+    
+    #;
+    (any
+     identity
+     (map (lambda (total)
+            (let ((triplet (triplet total)))
+              (debug triplet
+                     (best triplet)
+                     (worst triplet)
+                     (delta triplet)
+                     (surprising? triplet)
+                     (impossible? triplet))
+              (impossible? triplet)))
+          (iota 20)))
+  #+END_SRC
+
+  It looks like, starting from a surplus of surprising results; we're
+  going to have to render some unsurprising. But we can't just render
+  any results unsurprising: such that we don't fuck up $p$, we want to
+  unsurprise the minimum surprising result.
+
+  #+BEGIN_SRC scheme
+    (use test srfi-95)
+    
+    (include "triplet.scm")
+    
+    ;;; Make sure there's no impossible triplets in the first 31 possible
+    ;;; scores (0 <= t_i <= 30).
+    (test-assert
+     (not (any identity (map (compose impossible? triplet)
+                             (iota 31)))))
+    
+    (define mod-three-triplet
+      (lambda (total)
+        (let ((term (inexact->exact (/ total 3))))
+          (list (- term 1) term (+ term 1)))))
+    
+    (define surprising-triplet
+       (lambda (total)
+         (let ((term (inexact->exact (floor (/ total 3)))))
+           (list term term (+ term 2)))))
+    
+    (define unsurprising-triplet
+       (lambda (total)
+         (let ((term (inexact->exact (ceiling (/ total 3)))))
+           (list term term (+ term 1)))))
+    
+    (test
+     '(6 7 8)
+     (mod-three-triplet 21))
+    
+    (test
+     '(2 2 4)
+     (surprising-triplet 8))
+    
+    (test
+     '(3 3 4)
+     (unsurprising-triplet 8))
+    
+    (define totals->surprises
+      '(((15 13 11) . 1)
+        ((23 22 21) . 0)
+        ((1 8 0) . 1)
+        ((29 20 8 18 18 21) . 2)))
+    
+    ;; (count values (map surprising? (map triplet '(15 13 11))))
+    
+    #;
+    (map (lambda (totals->surprises)
+           (debug (car totals->surprises)
+                  (map triplet (car totals->surprises))
+                  (map (lambda (triplet)
+                         (if (surprising? triplet)
+                             (surprising->unsurprising triplet)
+                             triplet))
+                       (map triplet (car totals->surprises)))
+                  (count values
+                         (map surprising?
+                              (map (lambda (triplet)
+                                     (if (surprising? triplet)
+                                         (surprising->unsurprising triplet)
+                                         triplet))
+                                   (map triplet (car totals->surprises))))))
+           (count values
+                  (map surprising?
+                       (map triplet (car totals->surprises)))))
+         totals->surprises)
+    
+    (let* ((totals '(29 20 8 18 18 21))
+           (triplets (map triplet totals))
+           (bests (map best triplets)))
+      (let ((bests->triplets (sort (zip bests triplets) < car))
+            (target-surprises 1)
+            (surprises (count values (map surprising? triplets))))
+        (debug (zip totals triplets) bests->triplets surprises)))
+  #+END_SRC
+
+  Maintain a mapping of best -> triplets in order of increasing best;
+  unsurprise away the worst suprising triplets.
+
+  Let's construct the triplets from the highest total; maximizing the
+  best surprises.
+
+  I wonder if it's the case that every integer can be encoded as $(x,
+  x-2, x-2)$; if not, we can have $(x, x-1, x-2)$. Multiples of three
+  cannot be coded as $(x, x-2, x-2)$; everything else can. Let's
+  maximize the surprises; keep the $(x, x-1, x-2)s$.
+
+  We need: 3-mod triplet; surprising triplet; unsurprising triplet.
+  For surprising triplets, we take the floor and aim low; for
+  unsurprising triplets, we take the ceiling and aim high.
