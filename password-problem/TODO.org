@@ -1,0 +1,88 @@
+* DONE Permutations
+  CLOSED: [2012-04-27 Fri 20:25]
+  - CLOSING NOTE [2012-04-27 Fri 20:25] \\
+    Not efficient enought for large A
+  #+BEGIN_SRC scheme :tangle password.scm
+    (use debug matchable srfi-1 srfi-60)
+    
+    (define (permutations kons knil n)
+      (let iter ((reduction knil)
+                 (m (- (expt 2 n) 1)))
+        (if (negative? m)
+            reduction
+            (let* ((new-list (string->list (number->string m 2)))
+                   (new-list
+                    (if (< (length new-list) n)
+                        (append (make-list (- n (length new-list)) #\0)
+                                new-list)
+                        new-list)))
+              (iter (kons
+                     (map (lambda (char) (- (char->integer char) 48)) new-list)
+                     reduction)
+                    (- m 1))))))
+    
+    (define (strokes typed backspaces total)
+      (if (negative? backspaces)
+          (+ 1 total 1)
+          (let ((typed (drop-right typed backspaces))
+                (remaining (- total (- (length typed) backspaces))))
+            (if (zero? (reduce + 0 typed))
+                (+ backspaces remaining 1)
+                (+ backspaces remaining 1 total 1)))))
+    
+    (define (probability corrects typeds)
+      (let iter ((probability 1)
+                 (corrects corrects)
+                 (typeds typeds))
+        (if (null? corrects)
+            probability
+            (let ((typed (car typeds))
+                  (correct (car corrects)))
+              (iter (* probability
+                       (if (zero? typed)
+                           correct
+                           (- 1 correct)))
+                    (cdr corrects)
+                    (cdr typeds))))))
+    
+    (define (minimum-expected typed total corrects)
+      (let iter ((backspaces typed)
+                 (minimum +inf.0))
+        (if (< backspaces -1)
+            minimum
+            (iter
+             (- backspaces 1)
+             (min minimum
+                  (permutations (lambda (typed expected)
+                                  (let ((this-expected
+                                         (* (probability corrects typed)
+                                            (strokes typed
+                                                     backspaces
+                                                     total))))
+                                    (+ this-expected expected)))
+                                0
+                                typed))))))
+    
+    (with-output-to-file
+        "A-large.out"
+      (lambda ()
+        (with-input-from-file
+            ;; "input"
+            ;; "A-small-attempt0.in"
+            "A-large.in"
+          (lambda ()
+            ;; Cases
+            (read-line)
+            (let iter ((line (read-line))
+                       (case 1))
+              (if (not (eof-object? line))
+                  (begin
+                    (match (map string->number (string-split line))
+                      ((typed total)
+                       (let ((corrects (map string->number (string-split (read-line)))))
+                         (format #t
+                                 "Case #~a: ~a~%"
+                                 case
+                                 (minimum-expected typed total corrects))
+                         (iter (read-line) (+ case 1))))))))))))
+  #+END_SRC
